@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Send, ArrowLeft, Volume2, Loader2, Heart, Sparkles, ImagePlus, X } from 'lucide-react';
-import { Character } from '@/lib/characters';
+import { Character, characters } from '@/lib/characters';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlowingEffect } from '@/components/ui/glowing-effect';
 
@@ -24,6 +24,7 @@ const avatarUrls: Record<string, string> = {
   genius: 'https://s3.bmp.ovh/2026/04/28/wPx2Li7g.jpg'
 };
 
+// 角色语音配置（使用服务器端 TTS）
 const voiceConfig: Record<string, { pitch: number; rate: number; name: string }> = {
   ceoboy: { pitch: 0.7, rate: 0.85, name: '霸总音' },
   milkboy: { pitch: 1.2, rate: 1.0, name: '奶狗音' },
@@ -185,47 +186,88 @@ export default function ChatPage() {
   };
 
   const synthesizeSpeech = async (text: string, characterId: string): Promise<string | null> => {
-    if ('speechSynthesis' in window) {
-      return new Promise((resolve) => {
-        window.speechSynthesis.cancel();
-        
-        const utterance = new SpeechSynthesisUtterance(text);
-        
-        const voices = window.speechSynthesis.getVoices();
-        
-        const chineseMaleVoice = voices.find(v => 
-          (v.lang.startsWith('zh') || v.name.includes('Chinese') || v.name.includes('中文')) &&
-          (v.name.includes('Male') || v.name.includes('男') || v.name.includes('男声'))
-        );
-        
-        const chineseVoice = chineseMaleVoice || voices.find(v => 
-          v.lang.startsWith('zh') || v.name.includes('Chinese') || v.name.includes('中文')
-        );
-        
-        if (chineseVoice) {
-          utterance.voice = chineseVoice;
-        }
-        
-        utterance.lang = 'zh-CN';
-        
-        const config = voiceConfig[characterId] || { pitch: 1, rate: 0.9 };
-        utterance.rate = config.rate;
-        utterance.pitch = config.pitch;
-        utterance.volume = 0.8;
-        
-        utterance.onend = () => {
-          setIsPlayingAudio(null);
-          resolve('web-speech-api');
-        };
-        
-        utterance.onerror = () => {
-          setIsPlayingAudio(null);
-          resolve(null);
-        };
-        
-        setIsPlayingAudio('speaking');
-        window.speechSynthesis.speak(utterance);
+    // 获取角色配置
+    const char = characters.find(c => c.id === characterId);
+    const speaker = char?.voice || 'zh_male_m191_uranus_bigtts';
+    
+    try {
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, speaker })
       });
+      
+      const data = await response.json();
+      
+      if (data.error) {
+        console.error('TTS 合成失败:', data.error);
+        // 如果服务器端 TTS 失败，降级使用浏览器 Web Speech API
+        return fallbackToWebSpeech(text, characterId);
+      }
+      
+      if (data.audioUri) {
+        // 播放服务器端返回的音频
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+        const audio = new Audio(data.audioUri);
+        audioRef.current = audio;
+        setIsPlayingAudio('speaking');
+        audio.onended = () => setIsPlayingAudio(null);
+        audio.onerror = () => {
+          setIsPlayingAudio(null);
+          // 如果音频播放失败，降级使用 Web Speech API
+          fallbackToWebSpeech(text, characterId);
+        };
+        audio.play();
+        return data.audioUri;
+      }
+    } catch (error) {
+      console.error('调用 TTS API 失败:', error);
+      // 降级使用浏览器 Web Speech API
+      return fallbackToWebSpeech(text, characterId);
+    }
+    
+    return null;
+  };
+  
+  // 降级方案：使用浏览器 Web Speech API
+  const fallbackToWebSpeech = (text: string, characterId: string): string | null => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      const voices = window.speechSynthesis.getVoices();
+      
+      // 优先选择中文男声
+      const chineseMaleVoice = voices.find(v => 
+        (v.lang.startsWith('zh') || v.name.includes('Chinese') || v.name.includes('中文')) &&
+        (v.name.includes('Male') || v.name.includes('男') || v.name.includes('男声') || v.name.includes('Steven'))
+      );
+      
+      // 如果没有找到男声，选择中文语音
+      const chineseVoice = chineseMaleVoice || voices.find(v => 
+        v.lang.startsWith('zh') || v.name.includes('Chinese') || v.name.includes('中文')
+      );
+      
+      if (chineseVoice) {
+        utterance.voice = chineseVoice;
+      }
+      
+      utterance.lang = 'zh-CN';
+      
+      const config = voiceConfig[characterId] || { pitch: 1, rate: 0.9 };
+      utterance.rate = config.rate;
+      utterance.pitch = config.pitch;
+      utterance.volume = 0.8;
+      
+      utterance.onend = () => setIsPlayingAudio(null);
+      utterance.onerror = () => setIsPlayingAudio(null);
+      
+      setIsPlayingAudio('speaking');
+      window.speechSynthesis.speak(utterance);
+      return 'web-speech-api';
     }
     return null;
   };
