@@ -185,63 +185,29 @@ export default function ChatPage() {
     }
   };
 
+  // 语音合成函数 - 直接使用浏览器 Web Speech API
   const synthesizeSpeech = async (text: string, characterId: string): Promise<string | null> => {
-    // 获取角色配置
-    const char = characters.find(c => c.id === characterId);
-    const speaker = char?.voice || 'zh_male_m191_uranus_bigtts';
-    
-    try {
-      const response = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, speaker })
-      });
-      
-      const data = await response.json();
-      
-      if (data.error) {
-        console.error('TTS 合成失败:', data.error);
-        // 如果服务器端 TTS 失败，降级使用浏览器 Web Speech API
-        return fallbackToWebSpeech(text, characterId);
-      }
-      
-      if (data.audioUri) {
-        // 播放服务器端返回的音频
-        if (audioRef.current) {
-          audioRef.current.pause();
-        }
-        const audio = new Audio(data.audioUri);
-        audioRef.current = audio;
-        setIsPlayingAudio('speaking');
-        audio.onended = () => setIsPlayingAudio(null);
-        audio.onerror = () => {
-          setIsPlayingAudio(null);
-          // 如果音频播放失败，降级使用 Web Speech API
-          fallbackToWebSpeech(text, characterId);
-        };
-        audio.play();
-        return data.audioUri;
-      }
-    } catch (error) {
-      console.error('调用 TTS API 失败:', error);
-      // 降级使用浏览器 Web Speech API
-      return fallbackToWebSpeech(text, characterId);
-    }
-    
-    return null;
-  };
-  
-  // 降级方案：使用浏览器 Web Speech API
-  const fallbackToWebSpeech = (text: string, characterId: string): string | null => {
     if ('speechSynthesis' in window) {
+      // 取消之前的语音
       window.speechSynthesis.cancel();
       
       const utterance = new SpeechSynthesisUtterance(text);
       
-      // 获取所有可用语音
+      // 获取所有可用语音（确保 voices 已加载）
       const voices = window.speechSynthesis.getVoices();
       
-      // 角色专属语音配置 - 使用不同的 pitch 值来模拟不同角色的声音
+      // 如果还没有加载到语音，尝试等待一下
+      if (voices.length === 0) {
+        await new Promise(resolve => {
+          window.speechSynthesis.onvoiceschanged = resolve;
+          setTimeout(resolve, 100); // 超时保护
+        });
+      }
+      
+      // 重新获取语音列表
+      const availableVoices = window.speechSynthesis.getVoices();
+      
+      // 角色专属音调配置
       const rolePitchConfig: Record<string, number> = {
         ceoboy: 0.6,      // 霸总：低沉稳重的男声
         milkboy: 1.3,     // 小奶狗：偏高的少年音
@@ -249,25 +215,36 @@ export default function ChatPage() {
         genius: 1.1       // 学霸：略带傲娇的少年音
       };
       
+      // 角色专属语速配置
+      const roleRateConfig: Record<string, number> = {
+        ceoboy: 0.75,     // 霸总：语速较慢，沉稳
+        milkboy: 1.1,     // 小奶狗：语速稍快，活泼
+        childhood: 0.9,   // 青梅竹马：语速适中，温柔
+        genius: 1.0       // 学霸：语速正常
+      };
+      
       // 优先选择中文男声
-      const chineseMaleVoice = voices.find(v => 
+      const chineseMaleVoice = availableVoices.find(v => 
         (v.lang.startsWith('zh-CN') || v.lang.startsWith('zh') || 
          v.name.includes('Chinese') || v.name.includes('中文')) &&
         (v.name.includes('Male') || v.name.includes('男') || 
          v.name.includes('男声') || v.name.includes('Steven') ||
-         v.name.includes('Kangkang') || v.name.includes('Taichi'))
+         v.name.includes('Kangkang') || v.name.includes('Taichi') ||
+         v.name.includes('Zhiwei') || v.name.includes('Neeko') ||
+         v.lang.includes('-M-'))
       );
       
       // 如果没有找到明确的男声，尝试找中文语音
-      const chineseVoice = chineseMaleVoice || voices.find(v => 
+      const chineseVoice = chineseMaleVoice || availableVoices.find(v => 
         v.lang.startsWith('zh-CN') || v.lang.startsWith('zh') || 
         v.name.includes('Chinese') || v.name.includes('中文')
       );
       
-      // 最后兜底：找任意中文语音或英语语音
-      const fallbackVoice = chineseVoice || voices.find(v => 
-        v.lang.startsWith('zh') || v.lang.startsWith('en')
-      );
+      // 最后兜底：找任意语音
+      const fallbackVoice = chineseVoice || availableVoices.find(v => 
+        v.lang.startsWith('zh') || v.lang.startsWith('en') ||
+        v.lang.startsWith('ja')
+      ) || availableVoices[0];
       
       if (fallbackVoice) {
         utterance.voice = fallbackVoice;
@@ -275,14 +252,21 @@ export default function ChatPage() {
       
       utterance.lang = 'zh-CN';
       
-      // 根据角色设置不同的音调来区分角色声音
+      // 根据角色设置音调
       const pitch = rolePitchConfig[characterId] || 1;
       utterance.pitch = pitch;
-      utterance.rate = 0.9;
+      
+      // 根据角色设置语速
+      const rate = roleRateConfig[characterId] || 0.9;
+      utterance.rate = rate;
+      
       utterance.volume = 0.8;
       
       utterance.onend = () => setIsPlayingAudio(null);
-      utterance.onerror = () => setIsPlayingAudio(null);
+      utterance.onerror = (event) => {
+        console.error('语音播放失败:', event.error);
+        setIsPlayingAudio(null);
+      };
       
       setIsPlayingAudio('speaking');
       window.speechSynthesis.speak(utterance);
