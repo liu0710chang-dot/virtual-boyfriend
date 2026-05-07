@@ -1,19 +1,29 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { sendDailyLoveLetterToAll } from '@/lib/email'
+import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
-  // 简单密码验证
-  const userPwd = request.nextUrl.searchParams.get('pwd');
-  const cronPassword = process.env.CRON_PASSWORD;
-  
-  if (userPwd !== cronPassword) {
-    return NextResponse.json({ error: '未授权' }, { status: 401 });
+  // 第一步：验证请求是否合法
+  const authHeader = request.headers.get('authorization')
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json(
+      { error: '未授权访问' },
+      { status: 401 }
+    )
   }
 
-  // ============ 下面是原来的所有代码，不用动！===========
-  // 比如你原来写的发送邮件的代码，就放在这里
-
-  return NextResponse.json({
-    success: true,
-    message: '定时任务执行成功！'
-  });
+  // 第二步：执行任务—给所有用户发情话邮件
+  try {
+    await sendDailyLoveLetterToAll()
+    return NextResponse.json({
+      success: true,
+      message: '每日情话发送完成',
+      time: new Date().toISOString(),
+    })
+  } catch (error) {
+    console.error('每日情话发送失败：', error)
+    return NextResponse.json(
+      { error: '发送失败' },
+      { status: 500 }
+    )
+  }
 }
