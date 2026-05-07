@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { characters, bgmList, Character } from '@/lib/characters';
 import { useRouter } from 'next/navigation';
-import { Music, Heart, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
+import { Music, Heart, Play, Pause, SkipBack, SkipForward, User } from 'lucide-react';
 import { GlowingEffect } from '@/components/ui/glowing-effect';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 
@@ -267,6 +267,24 @@ export default function HomePage() {
         transition={{ duration: 0.8 }}
         className="relative z-10 max-w-lg mx-auto px-4 py-8"
       >
+        {/* 登录入口 */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3 }}
+          className="flex justify-end mb-4"
+        >
+          <motion.button
+            onClick={() => router.push('/auth')}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full text-sm font-medium shadow-lg hover:shadow-xl transition-all"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <User className="w-4 h-4" />
+            登录 / 注册
+          </motion.button>
+        </motion.div>
+
         {/* 标题区域 */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
