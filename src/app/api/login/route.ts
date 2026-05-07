@@ -5,13 +5,13 @@ const users: Record<string, { username: string; password: string }> = {
   'test@example.com': { username: 'testuser', password: 'password123' },
 };
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    // 从请求体中拿到前端传来的 turnstile token
-    const { turnstileToken, ...loginData } = await request.json();
-    const { email, password } = loginData;
+    const { email, password } = await request.json();
 
-    // 去 Cloudflare 验证这个 token 是不是真的
+    // --- 注释掉 Turnstile 验证 ---
+    /*
+    const { turnstileToken } = await request.json();
     const verifyResponse = await fetch(
       'https://challenges.cloudflare.com/turnstile/v0/siteverify',
       {
@@ -23,16 +23,11 @@ export async function POST(request: NextRequest) {
         }),
       }
     );
-
     const verifyResult = await verifyResponse.json();
-
-    // 如果验证失败，直接拒绝
     if (!verifyResult.success) {
-      return Response.json(
-        { error: '人机验证失败，请重试' },
-        { status: 403 }
-      );
+      return Response.json({ message: '人机验证失败，请重试' }, { status: 403 });
     }
+    */
 
     // 验证用户（模拟）
     const user = users[email];
