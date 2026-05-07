@@ -7,26 +7,30 @@ const users: Record<string, { username: string; password: string }> = {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, turnstileToken } = await request.json();
+    // 从请求体中拿到前端传来的 turnstile token
+    const { turnstileToken, ...loginData } = await request.json();
+    const { email, password } = loginData;
 
-    // 验证 Turnstile 令牌
-    const turnstileResponse = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        secret: process.env.TURNSTILE_SECRET_KEY || '',
-        response: turnstileToken,
-      }),
-    });
+    // 去 Cloudflare 验证这个 token 是不是真的
+    const verifyResponse = await fetch(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          secret: process.env.TURNSTILE_SECRET_KEY,
+          response: turnstileToken,
+        }),
+      }
+    );
 
-    const turnstileData = await turnstileResponse.json();
+    const verifyResult = await verifyResponse.json();
 
-    if (!turnstileData.success) {
-      return NextResponse.json(
-        { message: '验证失败，请重试' },
-        { status: 400 }
+    // 如果验证失败，直接拒绝
+    if (!verifyResult.success) {
+      return Response.json(
+        { error: '人机验证失败，请重试' },
+        { status: 403 }
       );
     }
 
