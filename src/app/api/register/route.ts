@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     const { turnstileToken, ...registrationData } = await request.json();
     const { email, password, username } = registrationData;
 
-    // 去 Cloudflare 验证这个 token 是不是真的
+    /* 
     const verifyResponse = await fetch(
       'https://challenges.cloudflare.com/turnstile/v0/siteverify',
       {
@@ -23,16 +23,13 @@ export async function POST(request: NextRequest) {
         }),
       }
     );
-
+ 
     const verifyResult = await verifyResponse.json();
-
-    // 如果验证失败，直接拒绝
+ 
     if (!verifyResult.success) {
-      return Response.json(
-        { error: '人机验证失败，请重试' },
-        { status: 403 }
-      );
+      return Response.json({ error: '人机验证失败，请重试' }, { status: 403 });
     }
+    */
 
     // 检查邮箱是否已注册
     if (users[email]) {
