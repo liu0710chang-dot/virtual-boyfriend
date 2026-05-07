@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, User, Heart, ArrowLeft } from 'lucide-react';
-import { Turnstile } from '@marsidev/react-turnstile';
 import { useRouter } from 'next/navigation';
 
 export default function AuthPage() {
@@ -14,7 +13,6 @@ export default function AuthPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [isClient, setIsClient] = useState(false);
@@ -50,7 +48,7 @@ export default function AuthPage() {
           email,
           password,
           username: !isLogin ? username : undefined,
-          turnstileToken: "bypass-test-token",
+          turnstileToken: 'bypass-test-token-123',
         }),
       });
 
@@ -251,17 +249,7 @@ export default function AuthPage() {
               </motion.p>
             )}
 
-            {/* Turnstile - commented out for testing
-            <motion.div variants={itemVariants} className="flex justify-center">
-              {isClient && (
-                <Turnstile
-                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
-                  onSuccess={(token) => setTurnstileToken(token)}
-                  onError={() => setError('验证失败，请重试')}
-                  className="w-full max-w-xs"
-                />
-              )}
-            </motion.div> */}
+            
 
             {/* 提交按钮 */}
             <motion.button
@@ -294,11 +282,10 @@ export default function AuthPage() {
             <p className="text-gray-500">
               {isLogin ? '还没有账号？' : '已有账号？'}
               <button
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setTurnstileToken('');
-                  setError('');
-                }}
+                  onClick={() => {
+                    setIsLogin(!isLogin);
+                    setError('');
+                  }}
                 className="ml-2 text-pink-500 hover:text-pink-600 font-semibold transition-colors"
               >
                 {isLogin ? '立即注册' : '立即登录'}
