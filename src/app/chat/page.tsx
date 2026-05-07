@@ -238,28 +238,47 @@ export default function ChatPage() {
       
       const utterance = new SpeechSynthesisUtterance(text);
       
+      // 获取所有可用语音
       const voices = window.speechSynthesis.getVoices();
+      
+      // 角色专属语音配置 - 使用不同的 pitch 值来模拟不同角色的声音
+      const rolePitchConfig: Record<string, number> = {
+        ceoboy: 0.6,      // 霸总：低沉稳重的男声
+        milkboy: 1.3,     // 小奶狗：偏高的少年音
+        childhood: 0.9,   // 青梅竹马：温柔适中的男声
+        genius: 1.1       // 学霸：略带傲娇的少年音
+      };
       
       // 优先选择中文男声
       const chineseMaleVoice = voices.find(v => 
-        (v.lang.startsWith('zh') || v.name.includes('Chinese') || v.name.includes('中文')) &&
-        (v.name.includes('Male') || v.name.includes('男') || v.name.includes('男声') || v.name.includes('Steven'))
+        (v.lang.startsWith('zh-CN') || v.lang.startsWith('zh') || 
+         v.name.includes('Chinese') || v.name.includes('中文')) &&
+        (v.name.includes('Male') || v.name.includes('男') || 
+         v.name.includes('男声') || v.name.includes('Steven') ||
+         v.name.includes('Kangkang') || v.name.includes('Taichi'))
       );
       
-      // 如果没有找到男声，选择中文语音
+      // 如果没有找到明确的男声，尝试找中文语音
       const chineseVoice = chineseMaleVoice || voices.find(v => 
-        v.lang.startsWith('zh') || v.name.includes('Chinese') || v.name.includes('中文')
+        v.lang.startsWith('zh-CN') || v.lang.startsWith('zh') || 
+        v.name.includes('Chinese') || v.name.includes('中文')
       );
       
-      if (chineseVoice) {
-        utterance.voice = chineseVoice;
+      // 最后兜底：找任意中文语音或英语语音
+      const fallbackVoice = chineseVoice || voices.find(v => 
+        v.lang.startsWith('zh') || v.lang.startsWith('en')
+      );
+      
+      if (fallbackVoice) {
+        utterance.voice = fallbackVoice;
       }
       
       utterance.lang = 'zh-CN';
       
-      const config = voiceConfig[characterId] || { pitch: 1, rate: 0.9 };
-      utterance.rate = config.rate;
-      utterance.pitch = config.pitch;
+      // 根据角色设置不同的音调来区分角色声音
+      const pitch = rolePitchConfig[characterId] || 1;
+      utterance.pitch = pitch;
+      utterance.rate = 0.9;
       utterance.volume = 0.8;
       
       utterance.onend = () => setIsPlayingAudio(null);
