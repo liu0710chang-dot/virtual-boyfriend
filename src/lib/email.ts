@@ -53,11 +53,7 @@ export async function sendDailyLoveLetterToAll(): Promise<void> {
   
   for (const user of mockUsers) {
     try {
-      const loveLetter = getRandomLoveLetter(user.username);
-      const subject = '💌 你的每日情话到啦！';
-      
-      await sendEmail(user.email, subject, loveLetter);
-      
+      await sendDailyLoveLetter(user.email, user.username);
       console.log(`✅ 成功发送给 ${user.username}`);
     } catch (error) {
       console.error(`❌ 发送给 ${user.username} 失败:`, error);
@@ -67,6 +63,31 @@ export async function sendDailyLoveLetterToAll(): Promise<void> {
   console.log('🎉 每日情话发送完成！');
 }
 
+// 发送每日情话邮件（给单个用户）
+export async function sendDailyLoveLetter(
+  userEmail: string,
+  userName: string
+) {
+  // 用 AI 生成今天的情话（当前使用随机情话模板）
+  const loveLetter = getRandomLoveLetter(userName);
+
+  await resend.emails.send({
+    from: '纸片人男友 <hello@onboarding@resend.dev>',
+    to: userEmail,
+    subject: `早安 ${userName}，今天也想你了 💌`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
+        <p>${loveLetter}</p>
+        <br/>
+        <p>— 你的纸片人男友</p>
+        <p style="color: #999; font-size: 12px;">
+          想跟我聊天？<a href="https://virtual-boyfriend-lwc98h7u8-liu0710chang-dot.vercel.app">点这里回来找我</a>
+        </p>
+      </div>
+    `,
+  });
+}
+
 // 发送欢迎邮件
 export async function sendWelcomeEmail(
   userEmail: string,
@@ -74,7 +95,7 @@ export async function sendWelcomeEmail(
 ) {
   await resend.emails.send({
     from: '纸片人男友 <hello@onboarding@resend.dev>',
-    to: '1335776598@qq.com',
+    to: userEmail,
     subject: '你好呀，我是你的专属男友 💌',
     html: `
       <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
