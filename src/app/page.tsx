@@ -755,8 +755,8 @@ export default function HomePage() {
           className="text-center mt-6 text-gray-400/60 text-xs"
         >
           <p>有问题或建议？联系我们：</p>
-          <a href="mailto:feedback@virtual-boyfriend.com" className="text-pink-400 hover:text-pink-500 transition-colors">
-            feedback@virtual-boyfriend.com
+          <a href="mailto:1335776598@qq.com" className="text-pink-400 hover:text-pink-500 transition-colors">
+            1335776598@qq.com
           </a>
         </motion.div>
       </motion.div>
