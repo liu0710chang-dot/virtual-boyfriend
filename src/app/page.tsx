@@ -746,6 +746,19 @@ export default function HomePage() {
         >
           <p>💕 愿每一次相遇都是心动的开始 💕</p>
         </motion.div>
+
+        {/* 联系我们 */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.2 }}
+          className="text-center mt-6 text-gray-400/60 text-xs"
+        >
+          <p>有问题或建议？联系我们：</p>
+          <a href="mailto:feedback@virtual-boyfriend.com" className="text-pink-400 hover:text-pink-500 transition-colors">
+            feedback@virtual-boyfriend.com
+          </a>
+        </motion.div>
       </motion.div>
     </div>
   );
