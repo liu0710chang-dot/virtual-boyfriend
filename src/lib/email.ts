@@ -1,4 +1,9 @@
-// 邮件发送功能 - 使用 Resend API
+// 邮件发送功能 - 使用 Resend SDK
+
+import { Resend } from 'resend';
+
+// 初始化 Resend
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // 模拟用户数据库
 const mockUsers = [
@@ -25,26 +30,21 @@ function getRandomLoveLetter(username: string): string {
   return template.replace('{username}', username);
 }
 
-// 发送单封邮件（使用 Resend API）
+// 发送单封邮件（使用 Resend SDK）
 async function sendEmail(to: string, subject: string, body: string): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY || 're_aYaDDYBL_BoWFvzBx25pZo9vwUML5NBwd';
-  
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: '我的测试邮件 <onboarding@resend.dev>',
-      to: [to],
-      subject,
-      html: `<p>${body}</p>`,
-    }),
+  const { data, error } = await resend.emails.send({
+    from: '我的测试邮件 <onboarding@resend.dev>',
+    to: [to],
+    subject,
+    html: `<p>${body}</p>`,
   });
 
-  const result = await response.json();
-  console.log(`📧 发送邮件到: ${to}`, result);
+  if (error) {
+    console.error(`❌ 发送邮件失败:`, error);
+    throw error;
+  }
+
+  console.log(`📧 发送邮件到: ${to}`, data);
 }
 
 // 给所有用户发送每日情话
