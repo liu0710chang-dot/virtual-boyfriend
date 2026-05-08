@@ -31,6 +31,59 @@ export class OpenRouterClient implements AIClient {
       return {
         content: data.choices[0].message.content
       };
+    },
+
+    generateStream: async function* (this: OpenRouterClient, request: ChatRequest): AsyncGenerator<string> {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`
+        },
+        body: JSON.stringify({
+          model: request.model || 'google/gemini-3-flash-preview',
+          messages: request.messages,
+          temperature: request.temperature || 0.9,
+          stream: true
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+            try {
+              const json = JSON.parse(data);
+              const content = json.choices?.[0]?.delta?.content;
+              if (content) {
+                yield content;
+              }
+            } catch {
+              // 忽略解析错误
+            }
+          }
+        }
+      }
     }
   };
 

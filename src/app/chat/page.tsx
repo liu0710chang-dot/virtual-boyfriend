@@ -333,30 +333,70 @@ export default function ChatPage() {
       const response = await fetch('/api/llm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: messagesHistory, temperature: 0.9 })
+        body: JSON.stringify({ 
+          messages: messagesHistory, 
+          temperature: 0.9,
+          stream: true  // 请求流式响应
+        })
       });
       
-      const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(data.error);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '请求失败');
       }
       
-      const llmResponse = data.content || '';
+      // 处理流式响应
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let fullResponse = '';
+      let isFirstChunk = true;
       
-      const needsPhoto = llmResponse.includes('[发照片]');
-      const cleanResponse = llmResponse.replace('[发照片]', '').trim();
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          fullResponse += chunk;
+          
+          // 更新消息内容（实时显示）
+          setMessages(prev => prev.map(m => 
+            m.id === assistantMessageId 
+              ? { ...m, content: fullResponse, isLoading: !done }
+              : m
+          ));
+          
+          // 滚动到最新消息
+          if (isFirstChunk) {
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+            isFirstChunk = false;
+          }
+        }
+      }
       
-      setMessages(prev => prev.map(m => 
-        m.id === assistantMessageId 
-          ? { ...m, content: cleanResponse, isLoading: false }
-          : m
-      ));
+      // 检查是否需要发照片
+      const needsPhoto = fullResponse.includes('[发照片]');
+      const cleanResponse = fullResponse.replace('[发照片]', '').trim();
       
+      // 最终更新消息（去除 [发照片] 标记）
+      if (needsPhoto && fullResponse !== cleanResponse) {
+        setMessages(prev => prev.map(m => 
+          m.id === assistantMessageId 
+            ? { ...m, content: cleanResponse }
+            : m
+        ));
+      }
+      
+      // 开始语音合成（在回复完成后）
       if (cleanResponse) {
-        await synthesizeSpeech(cleanResponse, character.id);
+        setTimeout(() => {
+          synthesizeSpeech(cleanResponse, character.id);
+        }, 500);
       }
       
+      // 如果需要发照片
       if (needsPhoto) {
         setTimeout(async () => {
           const photoUrl = await generatePhoto('自拍', character);
@@ -372,6 +412,7 @@ export default function ChatPage() {
         }, 1500);
       }
       
+      // 如果用户提到了位置
       if (location && character && !needsPhoto) {
         setTimeout(async () => {
           const photoUrl = await generatePhoto(location, character);
