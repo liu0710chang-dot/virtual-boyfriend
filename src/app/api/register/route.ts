@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sendWelcomeEmail } from '@/lib/email';
 
 // 模拟用户数据库
 const users: Record<string, { username: string; password: string }> = {
@@ -51,6 +52,15 @@ export async function POST(request: Request) {
 
     // 创建用户（模拟）
     users[email] = { username, password };
+
+    // 注册成功后，发送欢迎邮件（用 try-catch 包裹，避免发邮件失败影响注册流程）
+    try {
+      await sendWelcomeEmail(email, username);
+      console.log(`📧 欢迎邮件已发送到 ${email}`);
+    } catch (emailError) {
+      console.error(`⚠️ 发送欢迎邮件失败:`, emailError);
+      // 发邮件失败不影响注册流程
+    }
 
     return NextResponse.json({
       user: {
