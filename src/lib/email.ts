@@ -7,9 +7,9 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 // 模拟用户数据库
 const mockUsers = [
-  { id: '1', email: '1335776598@qq.com', username: '小可爱' },
-  { id: '2', email: 'user2@example.com', username: '甜心宝贝' },
-  { id: '3', email: 'user3@example.com', username: '小仙女' },
+  { id: '1', email: '1335776598@qq.com', name: '小可爱' },
+  { id: '2', email: 'user2@example.com', name: '甜心宝贝' },
+  { id: '3', email: 'user3@example.com', name: '小仙女' },
 ];
 
 // 情话模板列表
@@ -28,39 +28,6 @@ const loveLetterTemplates = [
 function getRandomLoveLetter(username: string): string {
   const template = loveLetterTemplates[Math.floor(Math.random() * loveLetterTemplates.length)];
   return template.replace('{username}', username);
-}
-
-// 发送单封邮件（使用 Resend SDK）
-async function sendEmail(to: string, subject: string, body: string): Promise<void> {
-  const { data, error } = await resend.emails.send({
-    from: '我的测试邮件 <onboarding@resend.dev>',
-    to: [to],
-    subject,
-    html: `<p>${body}</p>`,
-  });
-
-  if (error) {
-    console.error(`❌ 发送邮件失败:`, error);
-    throw error;
-  }
-
-  console.log(`📧 发送邮件到: ${to}`, data);
-}
-
-// 给所有用户发送每日情话
-export async function sendDailyLoveLetterToAll(): Promise<void> {
-  console.log('🚀 开始发送每日情话...');
-  
-  for (const user of mockUsers) {
-    try {
-      await sendDailyLoveLetter(user.email, user.username);
-      console.log(`✅ 成功发送给 ${user.username}`);
-    } catch (error) {
-      console.error(`❌ 发送给 ${user.username} 失败:`, error);
-    }
-  }
-  
-  console.log('🎉 每日情话发送完成！');
 }
 
 // 发送每日情话邮件（给单个用户）
@@ -86,6 +53,22 @@ export async function sendDailyLoveLetter(
       </div>
     `,
   });
+}
+
+// 给所有用户发送每日情话
+export async function sendDailyLoveLetterToAll() {
+  // 从数据库拿到所有用户
+  // const users = await db.select().from(usersTable)
+  const users = mockUsers; // 模拟数据
+
+  for (const user of users) {
+    try {
+      await sendDailyLoveLetter(user.email, user.name);
+    } catch (error) {
+      console.error('给', user.email, '发情话失败：', error);
+      // 某个用户失败不影响其他用户
+    }
+  }
 }
 
 // 发送欢迎邮件
